@@ -1,0 +1,53 @@
+# Podcastfy Conversation Configuration
+# Short-form podcast style (2-5 minutes)
+
+# Content length
+word_count: 500
+
+# Conversation style
+conversation_style:
+  - engaging
+  - concise
+  - informative
+
+# Host roles
+roles_person1: "host"
+roles_person2: "co-host"
+
+# Dialogue structure
+dialogue_structure:
+  - "Hook"
+  - "Key Points"
+  - "Takeaway"
+
+# Podcast branding
+podcast_name: "Quick Brief"
+podcast_tagline: "Your AI-powered audio summary"
+
+# Output settings
+output_language: "English"  # Override with --lang
+
+# Creativity (0-1, higher = more creative)
+creativity: 0.7
+
+# Engagement techniques
+engagement_techniques:
+  - "rhetorical questions"
+  - "brief anecdotes"
+  - "clear analogies"
+
+# TTS Configuration (OpenAI)
+tts_model: "openai"
+
+text_to_speech:
+  openai:
+    model: "tts-1-hd"
+    default_voices:
+      question: "onyx"   # Male, deep, authoritative (anchor)
+      answer: "nova"     # Female, bright, energetic (co-host)
+
+# Audio format
+audio_format: "mp3"  # Converted to OGG after generation
+
+# Ending message
+ending_message: "Thanks for listening!"
