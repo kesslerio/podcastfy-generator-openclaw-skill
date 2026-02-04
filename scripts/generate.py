@@ -167,7 +167,15 @@ except Exception as e:
         print(f"❌ Generation failed: {result.stderr}", file=sys.stderr)
         return None
     
-    mp3_path = Path(result.stdout.strip())
+    # Extract the MP3 path from stdout (last line, ignore warnings)
+    stdout_lines = result.stdout.strip().split('\n')
+    mp3_line = stdout_lines[-1].strip()
+    
+    # Handle relative paths from podcastfy
+    if mp3_line.startswith('./'):
+        mp3_line = mp3_line[2:]
+    
+    mp3_path = Path(mp3_line)
     if not mp3_path.exists():
         print(f"❌ Output file not found: {mp3_path}", file=sys.stderr)
         return None
