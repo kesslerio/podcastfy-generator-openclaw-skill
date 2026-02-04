@@ -2,7 +2,7 @@
 name: podcastfy-generator
 description: Generate AI podcast-style audio conversations from URLs, YouTube videos, PDFs, or text topics. Creates NotebookLM-style two-host dialogues. Use when user asks to "create a podcast", "make an audio summary", "turn this article into a podcast", or wants content converted to audio discussion format.
 homepage: https://github.com/kesslerio/podcastfy-generator-openclaw-skill
-metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["OPENAI_API_KEY", "GEMINI_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY"}}
+metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY", "optionalEnv": ["ELEVENLABS_API_KEY"]}}
 ---
 
 # Podcastfy Generator 🎙️
@@ -62,6 +62,27 @@ Run the generate script with content sources:
 
 Supported: `en` (English), `de` (German), `fr` (French), `es` (Spanish)
 
+### TTS Provider Options
+
+Default: **OpenAI TTS** (`tts-1-hd` with onyx + nova voices)
+
+Optional: **ElevenLabs** for higher quality, more natural voices:
+
+```bash
+# Use ElevenLabs (requires ELEVENLABS_API_KEY)
+<skill>/scripts/generate.py --url "https://example.com" --elevenlabs
+
+# Use specific ElevenLabs voice
+<skill>/scripts/generate.py --url "https://example.com" --elevenlabs --voice Rachel
+
+# ElevenLabs with PDF
+<skill>/scripts/generate.py --pdf "/path/to/doc.pdf" --elevenlabs --voice Adam
+```
+
+**Common ElevenLabs voices:** Rachel, Adam, Bella, Antoni, Thomas, Charlotte, James, Jessie
+
+To see all available voices: https://elevenlabs.io/voice-library
+
 ### Output
 
 The script outputs an OGG audio file path. Use the OpenClaw `message` tool to send it:
@@ -77,7 +98,7 @@ message(action="send", media=audio_path, target=user_chat)
 1. **Parse request** — Extract URLs, text, PDFs, or topic from user message
 2. **Detect language** — Auto-detect from content or use explicit `--lang`
 3. **Generate transcript** — Podcastfy creates dialogue via Gemini LLM
-4. **Synthesize audio** — OpenAI TTS with two distinct voices (onyx + nova)
+4. **Synthesize audio** — OpenAI TTS (default) or ElevenLabs (optional) with two distinct voices
 5. **Convert format** — MP3 → OGG for Telegram/WhatsApp compatibility
 6. **Deliver** — Send audio file to user's chat
 
@@ -94,8 +115,11 @@ Default podcast style is configured in `<skill>/config/conversation.yaml`:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `OPENAI_API_KEY` | Yes | TTS audio generation |
+| `OPENAI_API_KEY` | Yes | TTS audio generation (default) |
 | `GEMINI_API_KEY` | Yes | Transcript/dialogue generation |
+| `ELEVENLABS_API_KEY` | No | ElevenLabs TTS (optional, required for `--elevenlabs`) |
+
+Get your ElevenLabs API key at: https://elevenlabs.io/app/settings/api-keys
 
 ## Installation
 
