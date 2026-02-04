@@ -16,6 +16,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 # Ensure we use the skill's venv
@@ -75,6 +76,29 @@ def convert_to_ogg(mp3_path: Path, ogg_path: Path) -> bool:
     except FileNotFoundError:
         print("❌ ffmpeg not found", file=sys.stderr)
         return False
+
+
+def cleanup_old_files(directory: Path, pattern: str, max_age_hours: int = 1) -> int:
+    """Remove files matching pattern older than max_age_hours.
+
+    Returns number of files removed.
+    """
+    if not directory.exists():
+        return 0
+
+    removed = 0
+    max_age_seconds = max_age_hours * 3600
+
+    for file_path in directory.glob(pattern):
+        try:
+            age = time.time() - os.path.getctime(file_path)
+            if age > max_age_seconds:
+                file_path.unlink()
+                removed += 1
+        except Exception:
+            pass
+
+    return removed
 
 
 def generate_podcast(
@@ -233,6 +257,12 @@ except Exception as e:
         mp3_path.unlink()
     except Exception:
         pass
+
+    # Clean up old transcript files (keep for 1 hour for debugging)
+    transcripts_dir = SKILL_DIR / "data" / "transcripts"
+    removed = cleanup_old_files(transcripts_dir, "transcript_*.txt", max_age_hours=1)
+    if removed > 0:
+        print(f"🧹 Cleaned up {removed} old transcript file(s)", file=sys.stderr)
 
     print("✅ Podcast generated!", file=sys.stderr)
     return str(ogg_path)
