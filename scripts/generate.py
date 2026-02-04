@@ -102,6 +102,7 @@ with open(config_path) as f:
 # Parse arguments
 urls = []
 text = None
+pdf_path = None
 lang = None
 i = 2
 while i < len(sys.argv):
@@ -110,6 +111,9 @@ while i < len(sys.argv):
         i += 2
     elif sys.argv[i] == "--text" and i + 1 < len(sys.argv):
         text = sys.argv[i + 1]
+        i += 2
+    elif sys.argv[i] == "--pdf" and i + 1 < len(sys.argv):
+        pdf_path = sys.argv[i + 1]
         i += 2
     elif sys.argv[i] == "--lang" and i + 1 < len(sys.argv):
         lang = sys.argv[i + 1]
@@ -127,10 +131,12 @@ try:
         audio_file = generate_podcast(urls=urls, conversation_config=config)
     elif text:
         audio_file = generate_podcast(text=text, conversation_config=config)
+    elif pdf_path:
+        audio_file = generate_podcast(urls=[pdf_path], conversation_config=config)
     else:
         print("No input provided", file=sys.stderr)
         sys.exit(1)
-    
+
     print(audio_file)
 except Exception as e:
     print(f"Generation failed: {e}", file=sys.stderr)
@@ -145,6 +151,8 @@ except Exception as e:
             cmd.extend(["--url", url])
     if text:
         cmd.extend(["--text", text])
+    if pdf_path:
+        cmd.extend(["--pdf", pdf_path])
     if lang:
         # Normalize language code
         normalized = LANGUAGE_MAP.get(lang.lower(), lang)
