@@ -2,7 +2,7 @@
 name: podcastfy-generator
 description: Generate AI podcast-style audio conversations from URLs, YouTube videos, PDFs, or text topics. Creates NotebookLM-style two-host dialogues. Use when user asks to "create a podcast", "make an audio summary", "turn this article into a podcast", or wants content converted to audio discussion format.
 homepage: https://github.com/kesslerio/podcastfy-generator-openclaw-skill
-metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["OPENAI_API_KEY", "GEMINI_API_KEY", "ELEVENLABS_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY", "optionalEnv": ["ELEVENLABS_API_KEY"]}}
+metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["OPENAI_API_KEY", "GEMINI_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY", "optionalEnv": ["ELEVENLABS_API_KEY"]}}
 ---
 
 # Podcastfy Generator 🎙️
