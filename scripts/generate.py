@@ -8,14 +8,20 @@ Usage:
     generate.py --pdf /path/to/document.pdf
     generate.py --url https://url1.com --url https://url2.com --lang de
 
+    # Custom podcast identity
+    generate.py --url https://... --podcast-name "Deep Dive" --host-name Alex --cohost-name Sam
+
+    # Custom voices (ElevenLabs)
+    generate.py --url https://... --elevenlabs --host-voice Daniel --cohost-voice Alice
+
 Output: Prints path to generated OGG audio file.
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from pathlib import Path
 
@@ -79,10 +85,7 @@ def convert_to_ogg(mp3_path: Path, ogg_path: Path) -> bool:
 
 
 def cleanup_old_files(directory: Path, pattern: str, max_age_hours: int = 1) -> int:
-    """Remove files matching pattern older than max_age_hours.
-
-    Returns number of files removed.
-    """
+    """Remove files matching pattern older than max_age_hours."""
     if not directory.exists():
         return 0
 
@@ -101,30 +104,28 @@ def cleanup_old_files(directory: Path, pattern: str, max_age_hours: int = 1) -> 
     return removed
 
 
-def generate_podcast(
-    urls: list[str] | None = None,
-    text: str | None = None,
-    pdf_path: str | None = None,
-    lang: str | None = None,
-    output_path: str | None = None,
-    tts_model: str = "openai",
-    voice: str | None = None,
-) -> str | None:
-    """Generate podcast using podcastfy.
+def build_role(base_role: str, name: str | None) -> str:
+    """Build a role string, optionally including the host name.
 
-    Returns path to generated OGG file, or None on failure.
+    Examples:
+        build_role("host", None)    → "host"
+        build_role("host", "Alex")  → "host named Alex"
     """
-    # Load conversation config
-    config_path = SKILL_DIR / "config" / "conversation.yaml"
+    if name:
+        return f'{base_role} named {name}'
+    return base_role
 
-    # Build the Python code to run in venv
-    code = '''
+
+# Inner Python code executed inside the podcastfy venv.
+# Receives config overrides as a JSON blob via --overrides.
+VENV_CODE = '''
+import json
 import sys
 import yaml
 from pathlib import Path
 from podcastfy.client import generate_podcast
 
-# Load config
+# Load base config
 config_path = Path(sys.argv[1])
 with open(config_path) as f:
     config = yaml.safe_load(f)
@@ -133,9 +134,7 @@ with open(config_path) as f:
 urls = []
 text = None
 pdf_path = None
-lang = None
-tts_model = "openai"
-voice = None
+overrides = {}
 i = 2
 while i < len(sys.argv):
     if sys.argv[i] == "--url" and i + 1 < len(sys.argv):
@@ -147,31 +146,30 @@ while i < len(sys.argv):
     elif sys.argv[i] == "--pdf" and i + 1 < len(sys.argv):
         pdf_path = sys.argv[i + 1]
         i += 2
-    elif sys.argv[i] == "--lang" and i + 1 < len(sys.argv):
-        lang = sys.argv[i + 1]
-        i += 2
-    elif sys.argv[i] == "--tts-model" and i + 1 < len(sys.argv):
-        tts_model = sys.argv[i + 1]
-        i += 2
-    elif sys.argv[i] == "--voice" and i + 1 < len(sys.argv):
-        voice = sys.argv[i + 1]
+    elif sys.argv[i] == "--overrides" and i + 1 < len(sys.argv):
+        overrides = json.loads(sys.argv[i + 1])
         i += 2
     else:
         i += 1
 
-# Override language if specified
-if lang:
-    config["output_language"] = lang
+# Apply overrides (flat keys merged into config)
+for key, value in overrides.items():
+    if key == "text_to_speech" and isinstance(value, dict):
+        tts = config.setdefault("text_to_speech", {})
+        for provider, pconfig in value.items():
+            if isinstance(pconfig, dict):
+                existing = tts.setdefault(provider, {})
+                for pk, pv in pconfig.items():
+                    if isinstance(pv, dict) and isinstance(existing.get(pk), dict):
+                        existing[pk].update(pv)
+                    else:
+                        existing[pk] = pv
+            else:
+                tts[provider] = pconfig
+    else:
+        config[key] = value
 
-# Set TTS model
-config["tts_model"] = tts_model
-
-# Set voice if specified (for ElevenLabs)
-if voice:
-    tts_config = config.setdefault("text_to_speech", {})
-    el_config = tts_config.setdefault("elevenlabs", {"default_voices": {}})
-    el_config["default_voices"]["question"] = voice
-    el_config["default_voices"]["answer"] = voice
+tts_model = config.get("tts_model", "openai")
 
 # Generate podcast
 try:
@@ -191,8 +189,58 @@ except Exception as e:
     sys.exit(1)
 '''
 
+
+def generate_podcast(
+    urls: list[str] | None = None,
+    text: str | None = None,
+    pdf_path: str | None = None,
+    lang: str | None = None,
+    output_path: str | None = None,
+    tts_model: str = "openai",
+    host_voice: str | None = None,
+    cohost_voice: str | None = None,
+    podcast_name: str | None = None,
+    podcast_tagline: str | None = None,
+    host_name: str | None = None,
+    cohost_name: str | None = None,
+) -> str | None:
+    """Generate podcast using podcastfy.
+
+    Returns path to generated OGG file, or None on failure.
+    """
+    config_path = SKILL_DIR / "config" / "conversation.yaml"
+
+    # Build config overrides as a JSON blob
+    overrides: dict = {}
+
+    if lang:
+        overrides["output_language"] = LANGUAGE_MAP.get(lang.lower(), lang)
+
+    overrides["tts_model"] = tts_model
+
+    if podcast_name is not None:
+        overrides["podcast_name"] = podcast_name
+    if podcast_tagline is not None:
+        overrides["podcast_tagline"] = podcast_tagline
+
+    # Build host roles with optional names
+    if host_name:
+        overrides["roles_person1"] = build_role("host", host_name)
+    if cohost_name:
+        overrides["roles_person2"] = build_role("co-host", cohost_name)
+
+    # Voice overrides for the active TTS provider
+    if host_voice or cohost_voice:
+        provider = "elevenlabs" if tts_model == "elevenlabs" else "openai"
+        voices: dict = {}
+        if host_voice:
+            voices["question"] = host_voice
+        if cohost_voice:
+            voices["answer"] = cohost_voice
+        overrides["text_to_speech"] = {provider: {"default_voices": voices}}
+
     # Build command
-    cmd = [str(VENV_PYTHON), "-c", code, str(config_path)]
+    cmd = [str(VENV_PYTHON), "-c", VENV_CODE, str(config_path)]
 
     if urls:
         for url in urls:
@@ -201,14 +249,8 @@ except Exception as e:
         cmd.extend(["--text", text])
     if pdf_path:
         cmd.extend(["--pdf", pdf_path])
-    if tts_model:
-        cmd.extend(["--tts-model", tts_model])
-    if voice:
-        cmd.extend(["--voice", voice])
-    if lang:
-        # Normalize language code
-        normalized = LANGUAGE_MAP.get(lang.lower(), lang)
-        cmd.extend(["--lang", normalized])
+    if overrides:
+        cmd.extend(["--overrides", json.dumps(overrides)])
 
     # Run podcastfy
     print("🎙️ Generating podcast...", file=sys.stderr)
@@ -248,7 +290,6 @@ except Exception as e:
 
     print("🔄 Converting to OGG...", file=sys.stderr)
     if not convert_to_ogg(mp3_path, ogg_path):
-        # Fall back to MP3 if conversion fails
         print("⚠️ OGG conversion failed, using MP3", file=sys.stderr)
         return str(mp3_path)
 
@@ -272,37 +313,49 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate AI podcast from content sources"
     )
-    parser.add_argument(
-        "--url",
-        action="append",
-        dest="urls",
-        help="URL to process (can be repeated)"
+
+    # Content sources
+    source = parser.add_argument_group("content sources (at least one required)")
+    source.add_argument(
+        "--url", action="append", dest="urls",
+        help="URL to process (can be repeated)",
     )
-    parser.add_argument(
-        "--text",
-        help="Plain text content to convert"
+    source.add_argument("--text", help="Plain text content to convert")
+    source.add_argument("--pdf", help="Path to PDF file")
+
+    # Podcast identity
+    identity = parser.add_argument_group("podcast identity")
+    identity.add_argument(
+        "--podcast-name",
+        help='Podcast name (empty string = no name, hosts introduce topic naturally)',
     )
-    parser.add_argument(
-        "--pdf",
-        help="Path to PDF file"
+    identity.add_argument("--podcast-tagline", help="Podcast tagline")
+    identity.add_argument("--host-name", help="Name for the host (Person1)")
+    identity.add_argument("--cohost-name", help="Name for the co-host (Person2)")
+
+    # TTS / voices
+    voice_group = parser.add_argument_group("voice configuration")
+    voice_group.add_argument(
+        "--elevenlabs", action="store_true",
+        help="Use ElevenLabs TTS instead of OpenAI (requires ELEVENLABS_API_KEY)",
     )
-    parser.add_argument(
-        "--lang",
-        help="Output language (en, de, fr, es)"
+    voice_group.add_argument(
+        "--host-voice",
+        help="Voice for the host (e.g., 'Daniel', 'onyx')",
     )
-    parser.add_argument(
-        "--output", "-o",
-        help="Output file path (default: auto-generated)"
+    voice_group.add_argument(
+        "--cohost-voice",
+        help="Voice for the co-host (e.g., 'Alice', 'nova')",
     )
-    parser.add_argument(
-        "--elevenlabs",
-        action="store_true",
-        help="Use ElevenLabs TTS instead of OpenAI (requires ELEVENLABS_API_KEY)"
-    )
-    parser.add_argument(
+    # Legacy: --voice sets both host and co-host to the same voice
+    voice_group.add_argument(
         "--voice",
-        help="Voice ID for TTS (e.g., 'Rachel', 'Adam' for ElevenLabs)"
+        help=argparse.SUPPRESS,  # Hidden, kept for backwards compat
     )
+
+    # Output
+    parser.add_argument("--lang", help="Output language (en, de, fr, es)")
+    parser.add_argument("--output", "-o", help="Output file path (default: auto)")
 
     args = parser.parse_args()
 
@@ -315,6 +368,13 @@ def main():
     # Determine TTS model
     tts_model = "elevenlabs" if args.elevenlabs else "openai"
 
+    # Handle legacy --voice (sets both)
+    host_voice = args.host_voice
+    cohost_voice = args.cohost_voice
+    if args.voice and not host_voice and not cohost_voice:
+        host_voice = args.voice
+        cohost_voice = args.voice
+
     # Generate podcast
     output = generate_podcast(
         urls=args.urls,
@@ -323,11 +383,15 @@ def main():
         lang=args.lang,
         output_path=args.output,
         tts_model=tts_model,
-        voice=args.voice,
+        host_voice=host_voice,
+        cohost_voice=cohost_voice,
+        podcast_name=args.podcast_name,
+        podcast_tagline=args.podcast_tagline,
+        host_name=args.host_name,
+        cohost_name=args.cohost_name,
     )
 
     if output:
-        # Print path for OpenClaw to pick up
         print(output)
         sys.exit(0)
     else:
