@@ -25,9 +25,9 @@ if [ ! -d "$VENV_DIR" ]; then
     uv venv "$VENV_DIR" --python 3.11
 fi
 
-# Install dependencies
-echo "📥 Installing podcastfy..."
-uv pip install --python "$VENV_DIR/bin/python" podcastfy
+# Install dependencies from pyproject.toml (includes openai version constraint)
+echo "📥 Installing podcastfy and dependencies..."
+uv pip install --python "$VENV_DIR/bin/python" -e "$SKILL_DIR"
 
 # Verify installation
 "$VENV_DIR/bin/python" -c "import podcastfy; print(f'✅ Podcastfy {podcastfy.__version__} installed')" 2>/dev/null || \

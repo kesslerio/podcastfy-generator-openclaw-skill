@@ -1,53 +1,76 @@
 # Podcastfy Conversation Configuration
-# Short-form podcast style (2-5 minutes)
+#
+# Customize your podcast identity, hosts, voices, and style.
+# All fields are optional — podcastfy uses sensible defaults for anything omitted.
 
-# Content length
+# ── Podcast Identity ──────────────────────────────────────────────
+# Set podcast_name to "" or remove it to let hosts introduce the topic naturally
+# without referencing a show name.
+podcast_name: ""
+podcast_tagline: "Your AI-powered audio summary"
+
+# ── Host Configuration ────────────────────────────────────────────
+# roles_person1 = Host (Person1 / "question" voice)
+# roles_person2 = Co-host (Person2 / "answer" voice)
+#
+# Include the host name in the role to make the LLM use it in dialogue.
+# Example: "host named Alex" → hosts will call each other by name.
+roles_person1: "host"
+roles_person2: "co-host"
+
+# ── Content Settings ──────────────────────────────────────────────
 word_count: 500
+output_language: "English"  # Override with --lang (en, de, fr, es)
+creativity: 0.7
 
-# Conversation style
+# ── Conversation Style ────────────────────────────────────────────
 conversation_style:
   - engaging
   - concise
   - informative
 
-# Host roles
-roles_person1: "host"
-roles_person2: "co-host"
-
-# Dialogue structure
 dialogue_structure:
   - "Hook"
   - "Key Points"
   - "Takeaway"
 
-# Podcast branding
-podcast_name: "Quick Brief"
-podcast_tagline: "Your AI-powered audio summary"
-
-# Output settings
-output_language: "English"  # Override with --lang
-
-# Creativity (0-1, higher = more creative)
-creativity: 0.7
-
-# Engagement techniques
 engagement_techniques:
   - "rhetorical questions"
   - "brief anecdotes"
   - "clear analogies"
 
-# TTS Configuration (OpenAI)
+# ── TTS Configuration ────────────────────────────────────────────
+# Supported providers: openai, elevenlabs, edge, gemini
+# Use --elevenlabs flag or set tts_model to switch providers.
 tts_model: "openai"
 
 text_to_speech:
   openai:
     model: "tts-1-hd"
     default_voices:
-      question: "onyx"   # Male, deep, authoritative (anchor)
-      answer: "nova"     # Female, bright, energetic (co-host)
+      question: "echo"      # Host: warm, smooth, conversational
+      answer: "shimmer"     # Co-host: warm, soft, educational
 
-# Audio format
+  elevenlabs:
+    model: "eleven_multilingual_v2"
+    default_voices:
+      question: "Daniel"    # Host: steady broadcaster (British)
+      answer: "Alice"       # Co-host: clear educator (British)
+
+# ── Language-Specific Voice Overrides ─────────────────────────────
+# Override default voices per language. Only applies when no explicit
+# --host-voice / --cohost-voice is passed on the CLI.
+# Keys are language names as used by podcastfy (English, German, etc.)
+language_voices:
+  openai:
+    German:
+      question: "alloy"     # Host: neutral, balanced (better German diction)
+      answer: "shimmer"     # Co-host: warm, soft
+  # elevenlabs:
+  #   German:
+  #     question: "Daniel"
+  #     answer: "Alice"
+
+# ── Audio Output ──────────────────────────────────────────────────
 audio_format: "mp3"  # Converted to OGG after generation
-
-# Ending message
 ending_message: "Thanks for listening!"

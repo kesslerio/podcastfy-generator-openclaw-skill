@@ -16,6 +16,7 @@ Generate AI podcast-style audio conversations from any content. Creates engaging
 - **PDFs** → Parse document, synthesize key points as dialogue
 - **Text/Topics** → Generate podcast from plain text or topic prompts
 - **Multi-lingual** → English, German, French, Spanish (auto-detect or specify)
+- **Custom Identity** → Name the podcast, name the hosts, pick their voices
 
 ## Quick Examples
 
@@ -23,14 +24,12 @@ Generate AI podcast-style audio conversations from any content. Creates engaging
 "Create a podcast about this article: https://example.com/tech-news"
 "Turn this YouTube video into a podcast: https://youtube.com/watch?v=..."
 "Generate a German podcast discussing quantum computing"
-"Make an audio summary of these meeting notes: [paste text]"
+"Make a podcast called 'Deep Dive' with hosts Alex and Sam about this PDF"
 ```
 
 ## Usage
 
 ### Basic Generation
-
-Run the generate script with content sources:
 
 ```bash
 # From URL
@@ -49,6 +48,24 @@ Run the generate script with content sources:
 <skill>/scripts/generate.py --url "https://url1.com" --url "https://url2.com"
 ```
 
+### Podcast Identity
+
+```bash
+# Name the podcast
+<skill>/scripts/generate.py --url "https://..." --podcast-name "Deep Dive"
+
+# Name the hosts (they'll use each other's names in conversation)
+<skill>/scripts/generate.py --url "https://..." --host-name Alex --cohost-name Sam
+
+# No podcast name (hosts introduce topic naturally, no show branding)
+<skill>/scripts/generate.py --url "https://..." --podcast-name ""
+
+# Full customization
+<skill>/scripts/generate.py --url "https://..." \
+  --podcast-name "Tech Talk" --podcast-tagline "Breaking down the future" \
+  --host-name Alex --cohost-name Kiki
+```
+
 ### Language Options
 
 ```bash
@@ -57,31 +74,51 @@ Run the generate script with content sources:
 
 # Explicit language
 <skill>/scripts/generate.py --url "https://example.com" --lang de
-<skill>/scripts/generate.py --url "https://example.com" --lang fr
 ```
 
 Supported: `en` (English), `de` (German), `fr` (French), `es` (Spanish)
 
-### TTS Provider Options
+### TTS Provider & Voice Options
 
 Default: **OpenAI TTS** (`tts-1-hd` with onyx + nova voices)
 
 Optional: **ElevenLabs** for higher quality, more natural voices:
 
 ```bash
-# Use ElevenLabs (requires ELEVENLABS_API_KEY)
-<skill>/scripts/generate.py --url "https://example.com" --elevenlabs
+# Use ElevenLabs with defaults (Daniel + Alice)
+<skill>/scripts/generate.py --url "https://..." --elevenlabs
 
-# Use specific ElevenLabs voice
-<skill>/scripts/generate.py --url "https://example.com" --elevenlabs --voice Rachel
+# Custom voices per host
+<skill>/scripts/generate.py --url "https://..." --elevenlabs \
+  --host-voice Daniel --cohost-voice Alice
 
-# ElevenLabs with PDF
-<skill>/scripts/generate.py --pdf "/path/to/doc.pdf" --elevenlabs --voice Adam
+# OpenAI custom voices
+<skill>/scripts/generate.py --url "https://..." \
+  --host-voice echo --cohost-voice shimmer
 ```
 
-**Common ElevenLabs voices:** Rachel, Adam, Bella, Antoni, Thomas, Charlotte, James, Jessie
+**OpenAI voices:** alloy, echo, fable, onyx, nova, shimmer
 
-To see all available voices: https://elevenlabs.io/voice-library
+**ElevenLabs voices (premade):** Roger, Sarah, Laura, Charlie, George, Callum, River, Liam, Alice, Matilda, Will, Jessica, Eric, Bella, Chris, Brian, Daniel, Lily, Adam, Bill
+
+Browse all: https://elevenlabs.io/voice-library
+
+### All CLI Options
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `--url` | URL to process (repeatable) | `--url https://...` |
+| `--text` | Plain text content | `--text "AI is..."` |
+| `--pdf` | Path to PDF file | `--pdf report.pdf` |
+| `--lang` | Output language | `--lang de` |
+| `--podcast-name` | Podcast name (empty = none) | `--podcast-name "Deep Dive"` |
+| `--podcast-tagline` | Podcast tagline | `--podcast-tagline "..."` |
+| `--host-name` | Host name (Person1) | `--host-name Alex` |
+| `--cohost-name` | Co-host name (Person2) | `--cohost-name Kiki` |
+| `--elevenlabs` | Use ElevenLabs TTS | `--elevenlabs` |
+| `--host-voice` | Voice for host | `--host-voice Daniel` |
+| `--cohost-voice` | Voice for co-host | `--cohost-voice Alice` |
+| `--output`, `-o` | Output file path | `-o podcast.ogg` |
 
 ### Output
 
@@ -93,23 +130,17 @@ audio_path = exec("<skill>/scripts/generate.py --url 'https://...'")
 message(action="send", media=audio_path, target=user_chat)
 ```
 
-## Workflow
-
-1. **Parse request** — Extract URLs, text, PDFs, or topic from user message
-2. **Detect language** — Auto-detect from content or use explicit `--lang`
-3. **Generate transcript** — Podcastfy creates dialogue via Gemini LLM
-4. **Synthesize audio** — OpenAI TTS (default) or ElevenLabs (optional) with two distinct voices
-5. **Convert format** — MP3 → OGG for Telegram/WhatsApp compatibility
-6. **Deliver** — Send audio file to user's chat
-
 ## Configuration
 
-Default podcast style is configured in `<skill>/config/conversation.yaml`:
+Default podcast style is configured in `<skill>/config/conversation.yaml`. CLI flags override config values.
 
-- **Length:** 2-5 minutes (short format)
-- **Style:** Engaging, concise, informative
-- **Hosts:** Onyx (male anchor) + Nova (female co-host)
-- **Structure:** Hook → Key Points → Takeaway
+Key config options:
+- `podcast_name` — Show name (empty = content-driven intro)
+- `roles_person1` / `roles_person2` — Host role descriptions
+- `text_to_speech.{provider}.default_voices` — Default voice per provider
+- `language_voices.{provider}.{Language}` — Per-language voice overrides (applied when no `--host-voice`/`--cohost-voice` is set)
+- `conversation_style` — Style keywords (engaging, concise, etc.)
+- `creativity` — 0-1 scale (higher = more creative dialogue)
 
 ## Environment Variables
 
@@ -117,7 +148,7 @@ Default podcast style is configured in `<skill>/config/conversation.yaml`:
 |----------|----------|---------|
 | `OPENAI_API_KEY` | Yes | TTS audio generation (default) |
 | `GEMINI_API_KEY` | Yes | Transcript/dialogue generation |
-| `ELEVENLABS_API_KEY` | No | ElevenLabs TTS (optional, required for `--elevenlabs`) |
+| `ELEVENLABS_API_KEY` | No | ElevenLabs TTS (required for `--elevenlabs`) |
 
 Get your ElevenLabs API key at: https://elevenlabs.io/app/settings/api-keys
 
@@ -128,8 +159,6 @@ First-time setup (run once):
 ```bash
 <skill>/scripts/install.sh
 ```
-
-This creates an isolated Python environment with podcastfy and dependencies.
 
 ## Requirements
 
@@ -145,8 +174,11 @@ Install ffmpeg: `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux)
 ### "API key not set"
 Ensure `OPENAI_API_KEY` and `GEMINI_API_KEY` are in your environment or secrets.conf
 
+### Hosts say "Quick Brief" or reference a show name
+Set `podcast_name: ""` in config/conversation.yaml or use `--podcast-name ""`
+
 ### Generation takes too long
 Podcastfy processes content through LLM + TTS. Expect 30-90 seconds for short podcasts.
 
 ### Audio quality issues
-The skill uses `tts-1-hd` model for high quality. If issues persist, check source content quality.
+Try ElevenLabs (`--elevenlabs`) for more natural voices. OpenAI `tts-1-hd` is decent but synthetic.

@@ -1,0 +1,11 @@
+# Generated audio and transcripts
+data/audio/
+data/transcripts/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store

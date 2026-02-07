@@ -1,0 +1,15 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "podcastfy-generator-openclaw-skill"
+version = "0.1.0"
+description = "Generate AI podcast-style audio conversations from URLs, YouTube videos, PDFs, or text topics"
+dependencies = [
+    "podcastfy",
+    'openai >=1.0.0,<1.56',
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]
