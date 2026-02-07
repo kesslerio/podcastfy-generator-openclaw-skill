@@ -125,6 +125,17 @@ import yaml
 from pathlib import Path
 from podcastfy.client import generate_podcast
 
+
+def deep_merge(base, override):
+    """Recursively merge override dict into base dict."""
+    for k, v in override.items():
+        if isinstance(v, dict) and isinstance(base.get(k), dict):
+            deep_merge(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+
 # Load base config
 config_path = Path(sys.argv[1])
 with open(config_path) as f:
@@ -147,27 +158,25 @@ while i < len(sys.argv):
         pdf_path = sys.argv[i + 1]
         i += 2
     elif sys.argv[i] == "--overrides" and i + 1 < len(sys.argv):
-        overrides = json.loads(sys.argv[i + 1])
+        try:
+            overrides = json.loads(sys.argv[i + 1])
+        except json.JSONDecodeError as e:
+            print(f"Error: invalid --overrides JSON: {e}", file=sys.stderr)
+            sys.exit(1)
         i += 2
     else:
         i += 1
 
-# Apply overrides (flat keys merged into config)
-for key, value in overrides.items():
-    if key == "text_to_speech" and isinstance(value, dict):
-        tts = config.setdefault("text_to_speech", {})
-        for provider, pconfig in value.items():
-            if isinstance(pconfig, dict):
-                existing = tts.setdefault(provider, {})
-                for pk, pv in pconfig.items():
-                    if isinstance(pv, dict) and isinstance(existing.get(pk), dict):
-                        existing[pk].update(pv)
-                    else:
-                        existing[pk] = pv
-            else:
-                tts[provider] = pconfig
-    else:
-        config[key] = value
+# Apply overrides via recursive deep merge
+deep_merge(config, overrides)
+
+# Handle empty podcast_name: podcastfy hardcodes "Welcome to {name} - {tagline}"
+# in its prompt, so empty string produces "Welcome to  - ...". Replace with a
+# generic name that reads naturally if the user explicitly cleared it.
+podcast_name = (config.get("podcast_name") or "").strip()
+if not podcast_name:
+    config["podcast_name"] = "the show"
+    config["podcast_tagline"] = "Let's get into it"
 
 tts_model = config.get("tts_model", "openai")
 
@@ -368,12 +377,18 @@ def main():
     # Determine TTS model
     tts_model = "elevenlabs" if args.elevenlabs else "openai"
 
-    # Handle legacy --voice (sets both)
+    # Handle legacy --voice (sets both, but new flags take precedence)
     host_voice = args.host_voice
     cohost_voice = args.cohost_voice
-    if args.voice and not host_voice and not cohost_voice:
-        host_voice = args.voice
-        cohost_voice = args.voice
+    if args.voice:
+        if host_voice or cohost_voice:
+            print(
+                "⚠️ --voice ignored because --host-voice or --cohost-voice is set",
+                file=sys.stderr,
+            )
+        else:
+            host_voice = args.voice
+            cohost_voice = args.voice
 
     # Generate podcast
     output = generate_podcast(
