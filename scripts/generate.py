@@ -252,7 +252,7 @@ def generate_podcast(
         overrides["roles_person2"] = build_role("co-host", cohost_name)
 
     # Voice overrides for the active TTS provider
-    provider = "elevenlabs" if tts_model == "elevenlabs" else "openai"
+    provider = tts_model if tts_model in ("elevenlabs", "sherpa") else "openai"
     if host_voice or cohost_voice:
         # Explicit CLI voices take highest priority
         voices: dict = {}
