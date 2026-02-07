@@ -48,14 +48,28 @@ text_to_speech:
   openai:
     model: "tts-1-hd"
     default_voices:
-      question: "onyx"     # Host: deep, authoritative
-      answer: "nova"       # Co-host: bright, energetic
+      question: "echo"      # Host: warm, smooth, conversational
+      answer: "shimmer"     # Co-host: warm, soft, educational
 
   elevenlabs:
     model: "eleven_multilingual_v2"
     default_voices:
-      question: "Daniel"   # Host: steady broadcaster (British)
-      answer: "Alice"      # Co-host: clear educator (British)
+      question: "Daniel"    # Host: steady broadcaster (British)
+      answer: "Alice"       # Co-host: clear educator (British)
+
+# ── Language-Specific Voice Overrides ─────────────────────────────
+# Override default voices per language. Only applies when no explicit
+# --host-voice / --cohost-voice is passed on the CLI.
+# Keys are language names as used by podcastfy (English, German, etc.)
+language_voices:
+  openai:
+    German:
+      question: "alloy"     # Host: neutral, balanced (better German diction)
+      answer: "shimmer"     # Co-host: warm, soft
+  # elevenlabs:
+  #   German:
+  #     question: "Daniel"
+  #     answer: "Alice"
 
 # ── Audio Output ──────────────────────────────────────────────────
 audio_format: "mp3"  # Converted to OGG after generation

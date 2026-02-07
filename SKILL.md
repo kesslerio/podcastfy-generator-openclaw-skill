@@ -138,6 +138,7 @@ Key config options:
 - `podcast_name` — Show name (empty = content-driven intro)
 - `roles_person1` / `roles_person2` — Host role descriptions
 - `text_to_speech.{provider}.default_voices` — Default voice per provider
+- `language_voices.{provider}.{Language}` — Per-language voice overrides (applied when no `--host-voice`/`--cohost-voice` is set)
 - `conversation_style` — Style keywords (engaging, concise, etc.)
 - `creativity` — 0-1 scale (higher = more creative dialogue)
 

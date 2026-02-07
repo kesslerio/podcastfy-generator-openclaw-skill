@@ -239,14 +239,25 @@ def generate_podcast(
         overrides["roles_person2"] = build_role("co-host", cohost_name)
 
     # Voice overrides for the active TTS provider
+    provider = "elevenlabs" if tts_model == "elevenlabs" else "openai"
     if host_voice or cohost_voice:
-        provider = "elevenlabs" if tts_model == "elevenlabs" else "openai"
+        # Explicit CLI voices take highest priority
         voices: dict = {}
         if host_voice:
             voices["question"] = host_voice
         if cohost_voice:
             voices["answer"] = cohost_voice
         overrides["text_to_speech"] = {provider: {"default_voices": voices}}
+    elif lang:
+        # Apply language-specific voice defaults from config (if no explicit voices)
+        import yaml
+        with open(config_path) as f:
+            base_config = yaml.safe_load(f)
+        lang_voices = base_config.get("language_voices", {})
+        normalized_lang = LANGUAGE_MAP.get(lang.lower(), lang)
+        provider_lang_voices = lang_voices.get(provider, {}).get(normalized_lang)
+        if provider_lang_voices:
+            overrides["text_to_speech"] = {provider: {"default_voices": provider_lang_voices}}
 
     # Build command
     cmd = [str(VENV_PYTHON), "-c", VENV_CODE, str(config_path)]
