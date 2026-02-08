@@ -107,6 +107,7 @@ Optional: **ElevenLabs** for higher quality, more natural voices:
 **ElevenLabs voices (premade):** Roger, Sarah, Laura, Charlie, George, Callum, River, Liam, Alice, Matilda, Will, Jessica, Eric, Bella, Chris, Brian, Daniel, Lily, Adam, Bill
 
 **Sherpa-onnx (local):** Uses Piper VITS models. Voice paths configured in `config/conversation.yaml` under `text_to_speech.sherpa`. Requires `sherpa-onnx-offline-tts` binary (set `SHERPA_ONNX_TTS_BIN` or install to `~/.openclaw/tools/sherpa-onnx-tts/`).
+Performance note: CPU-based synthesis, typically ~2-10x realtime, requires ~2GB+ RAM, and quality is good but generally below ElevenLabs.
 
 Browse ElevenLabs voices: https://elevenlabs.io/voice-library
 

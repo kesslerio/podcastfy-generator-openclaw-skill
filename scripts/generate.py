@@ -62,6 +62,9 @@ def check_environment(use_elevenlabs: bool = False):
         print("❌ GEMINI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
+    # langchain_google_genai reads GOOGLE_API_KEY, while this skill uses GEMINI_API_KEY.
+    os.environ.setdefault("GOOGLE_API_KEY", os.environ.get("GEMINI_API_KEY", ""))
+
     if use_elevenlabs and not os.environ.get("ELEVENLABS_API_KEY"):
         print("❌ ELEVENLABS_API_KEY not set (required for --elevenlabs)", file=sys.stderr)
         sys.exit(1)
@@ -192,8 +195,9 @@ if tts_model == "sherpa":
     # which fails for sherpa since Config doesn't know about it. Patch it.
     from podcastfy.utils.config import Config
     Config.SHERPA_API_KEY = None
-    # sherpa outputs WAV but pydub/ffmpeg auto-detects format from content,
-    # so we leave audio_format as mp3 to keep podcastfy's output pipeline intact.
+    # sherpa-onnx provider emits WAV bytes.
+    config["audio_format"] = "wav"
+    config.setdefault("text_to_speech", {})["audio_format"] = "wav"
 
 # Generate podcast
 try:
