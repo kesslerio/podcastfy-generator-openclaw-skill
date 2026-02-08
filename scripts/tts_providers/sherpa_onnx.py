@@ -62,11 +62,17 @@ def _parse_voice(voice: str) -> tuple[str, int]:
     return os.path.expanduser(voice), 0
 
 
-class SherpaOnnxTTS(TTSProvider):
-    """Local TTS via sherpa-onnx-offline-tts binary."""
+class SherpaTTS(TTSProvider):
+    """Local TTS via sherpa-onnx-offline-tts binary.
+
+    Class name is SherpaTTS (not SherpaOnnxTTS) because podcastfy resolves
+    config keys via ClassName.lower().replace('tts','') → 'sherpa', which
+    must match the 'sherpa:' section in conversation.yaml.
+    """
 
     def __init__(self, api_key: Optional[str] = None, model: str = "sherpa"):
         """Initialize. api_key is ignored (local provider)."""
+        self.model = model  # Required by podcastfy's text_to_speech.py
         self.tts_bin = os.environ.get(
             "SHERPA_ONNX_TTS_BIN",
             os.path.expanduser(

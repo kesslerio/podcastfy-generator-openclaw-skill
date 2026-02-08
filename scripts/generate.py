@@ -185,13 +185,15 @@ tts_model = config.get("tts_model", "openai")
 if tts_model == "sherpa":
     skill_dir = Path(sys.argv[1]).parent.parent  # config/ -> skill root
     sys.path.insert(0, str(skill_dir / "scripts"))
-    from tts_providers.sherpa_onnx import SherpaOnnxTTS
+    from tts_providers.sherpa_onnx import SherpaTTS
     from podcastfy.tts.factory import TTSProviderFactory
-    TTSProviderFactory.register_provider("sherpa", SherpaOnnxTTS)
-    # sherpa outputs WAV; tell podcastfy to use wav format for intermediate files
-    config["audio_format"] = "wav"
-    tts_config = config.setdefault("text_to_speech", {})
-    tts_config["audio_format"] = "wav"
+    TTSProviderFactory.register_provider("sherpa", SherpaTTS)
+    # podcastfy client.py does getattr(config, f"{tts_model.upper()}_API_KEY")
+    # which fails for sherpa since Config doesn't know about it. Patch it.
+    from podcastfy.utils.config import Config
+    Config.SHERPA_API_KEY = None
+    # sherpa outputs WAV but pydub/ffmpeg auto-detects format from content,
+    # so we leave audio_format as mp3 to keep podcastfy's output pipeline intact.
 
 # Generate podcast
 try:
@@ -263,6 +265,12 @@ def generate_podcast(
         overrides["text_to_speech"] = {provider: {"default_voices": voices}}
     elif lang:
         # Apply language-specific voice defaults from config (if no explicit voices)
+        # yaml lives in the venv; add its site-packages so we can import it
+        _venv_site = VENV_DIR / "lib"
+        for _sp in _venv_site.glob("python*/site-packages"):
+            if str(_sp) not in sys.path:
+                sys.path.insert(0, str(_sp))
+            break
         import yaml
         with open(config_path) as f:
             base_config = yaml.safe_load(f)
