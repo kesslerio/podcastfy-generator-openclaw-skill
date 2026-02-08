@@ -153,7 +153,8 @@ class SherpaTTS(TTSProvider):
                 f"--output-filename={tmp_path}",
                 clean_text,
             ]
-            cmd_str = " ".join(shlex.quote(str(part)) for part in cmd)
+            # Log command args without text content to avoid leaking sensitive input
+            cmd_args_str = " ".join(shlex.quote(str(part)) for part in cmd[:-1])
             timeout_seconds = self._resolve_timeout_seconds(clean_text)
 
             try:
@@ -165,13 +166,14 @@ class SherpaTTS(TTSProvider):
                 )
             except subprocess.TimeoutExpired as exc:
                 raise RuntimeError(
-                    f"sherpa-onnx-offline-tts timed out after {timeout_seconds}s. Command: {cmd_str}"
+                    f"sherpa-onnx-offline-tts timed out after {timeout_seconds}s "
+                    f"(text length: {len(clean_text)} chars). Args: {cmd_args_str}"
                 ) from exc
 
             if result.returncode != 0:
                 raise RuntimeError(
                     f"sherpa-onnx-offline-tts failed (rc={result.returncode}): "
-                    f"{result.stderr[:500]} | Command: {cmd_str}"
+                    f"{result.stderr[:500]} | Args: {cmd_args_str}"
                 )
 
             with tmp_path.open("rb") as f:

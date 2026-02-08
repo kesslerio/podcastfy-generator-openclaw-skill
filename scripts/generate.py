@@ -47,14 +47,19 @@ LANGUAGE_MAP = {
 }
 
 
-def check_environment(use_elevenlabs: bool = False):
+def check_environment(use_elevenlabs: bool = False, use_sherpa: bool = False):
     """Verify environment is properly set up."""
     if not VENV_DIR.exists():
         print(f"❌ Virtual environment not found at {VENV_DIR}", file=sys.stderr)
         print(f"   Run: {SKILL_DIR}/scripts/install.sh", file=sys.stderr)
         sys.exit(1)
 
-    if not os.environ.get("OPENAI_API_KEY"):
+    if use_elevenlabs and use_sherpa:
+        print("❌ --elevenlabs and --sherpa are mutually exclusive", file=sys.stderr)
+        sys.exit(1)
+
+    # Sherpa is fully local — only needs GEMINI_API_KEY for transcript generation
+    if not use_sherpa and not os.environ.get("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
@@ -412,7 +417,7 @@ def main():
     if not any([args.urls, args.text, args.pdf]):
         parser.error("At least one of --url, --text, or --pdf is required")
 
-    check_environment(use_elevenlabs=args.elevenlabs)
+    check_environment(use_elevenlabs=args.elevenlabs, use_sherpa=args.sherpa)
 
     # Determine TTS model
     if args.sherpa:
