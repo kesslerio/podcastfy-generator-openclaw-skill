@@ -63,7 +63,7 @@ text_to_speech:
     model: "sherpa"
     default_voices:
       question: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-en_GB-alan-medium"
-      answer: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-en_US-lessac-high"
+      answer: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-en_US-libritts_r-medium"
 
 # ── Language-Specific Voice Overrides ─────────────────────────────
 # Override default voices per language. Only applies when no explicit
