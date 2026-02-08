@@ -81,7 +81,7 @@ language_voices:
   sherpa:
     German:
       question: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-de_DE-thorsten_emotional-medium"
-      answer: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-de_DE-kerstin-low"
+      answer: "~/.openclaw/tools/sherpa-onnx-tts/models/vits-piper-de_DE-ramona-low"
 
 # ── Audio Output ──────────────────────────────────────────────────
 audio_format: "mp3"  # Converted to OGG after generation
