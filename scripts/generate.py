@@ -47,20 +47,28 @@ LANGUAGE_MAP = {
 }
 
 
-def check_environment(use_elevenlabs: bool = False):
+def check_environment(use_elevenlabs: bool = False, use_sherpa: bool = False):
     """Verify environment is properly set up."""
     if not VENV_DIR.exists():
         print(f"❌ Virtual environment not found at {VENV_DIR}", file=sys.stderr)
         print(f"   Run: {SKILL_DIR}/scripts/install.sh", file=sys.stderr)
         sys.exit(1)
 
-    if not os.environ.get("OPENAI_API_KEY"):
+    if use_elevenlabs and use_sherpa:
+        print("❌ --elevenlabs and --sherpa are mutually exclusive", file=sys.stderr)
+        sys.exit(1)
+
+    # Sherpa is fully local — only needs GEMINI_API_KEY for transcript generation
+    if not use_sherpa and not os.environ.get("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
     if not os.environ.get("GEMINI_API_KEY"):
         print("❌ GEMINI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
+
+    # langchain_google_genai reads GOOGLE_API_KEY, while this skill uses GEMINI_API_KEY.
+    os.environ.setdefault("GOOGLE_API_KEY", os.environ.get("GEMINI_API_KEY", ""))
 
     if use_elevenlabs and not os.environ.get("ELEVENLABS_API_KEY"):
         print("❌ ELEVENLABS_API_KEY not set (required for --elevenlabs)", file=sys.stderr)
@@ -120,6 +128,7 @@ def build_role(base_role: str, name: str | None) -> str:
 # Receives config overrides as a JSON blob via --overrides.
 VENV_CODE = '''
 import json
+import os
 import sys
 import yaml
 from pathlib import Path
@@ -180,6 +189,21 @@ if not podcast_name:
 
 tts_model = config.get("tts_model", "openai")
 
+# Register sherpa-onnx provider if requested (local, free TTS)
+if tts_model == "sherpa":
+    skill_dir = Path(sys.argv[1]).parent.parent  # config/ -> skill root
+    sys.path.insert(0, str(skill_dir / "scripts"))
+    from tts_providers.sherpa_onnx import SherpaTTS
+    from podcastfy.tts.factory import TTSProviderFactory
+    TTSProviderFactory.register_provider("sherpa", SherpaTTS)
+    # podcastfy client.py does getattr(config, f"{tts_model.upper()}_API_KEY")
+    # which fails for sherpa since Config doesn't know about it. Patch it.
+    from podcastfy.utils.config import Config
+    Config.SHERPA_API_KEY = None
+    # sherpa-onnx provider emits WAV bytes.
+    config["audio_format"] = "wav"
+    config.setdefault("text_to_speech", {})["audio_format"] = "wav"
+
 # Generate podcast
 try:
     if urls:
@@ -239,7 +263,7 @@ def generate_podcast(
         overrides["roles_person2"] = build_role("co-host", cohost_name)
 
     # Voice overrides for the active TTS provider
-    provider = "elevenlabs" if tts_model == "elevenlabs" else "openai"
+    provider = tts_model if tts_model in ("elevenlabs", "sherpa") else "openai"
     if host_voice or cohost_voice:
         # Explicit CLI voices take highest priority
         voices: dict = {}
@@ -250,6 +274,12 @@ def generate_podcast(
         overrides["text_to_speech"] = {provider: {"default_voices": voices}}
     elif lang:
         # Apply language-specific voice defaults from config (if no explicit voices)
+        # yaml lives in the venv; add its site-packages so we can import it
+        _venv_site = VENV_DIR / "lib"
+        for _sp in _venv_site.glob("python*/site-packages"):
+            if str(_sp) not in sys.path:
+                sys.path.insert(0, str(_sp))
+            break
         import yaml
         with open(config_path) as f:
             base_config = yaml.safe_load(f)
@@ -360,6 +390,10 @@ def main():
         help="Use ElevenLabs TTS instead of OpenAI (requires ELEVENLABS_API_KEY)",
     )
     voice_group.add_argument(
+        "--sherpa", action="store_true",
+        help="Use local sherpa-onnx TTS (free, offline, no API key needed)",
+    )
+    voice_group.add_argument(
         "--host-voice",
         help="Voice for the host (e.g., 'Daniel', 'onyx')",
     )
@@ -383,10 +417,15 @@ def main():
     if not any([args.urls, args.text, args.pdf]):
         parser.error("At least one of --url, --text, or --pdf is required")
 
-    check_environment(use_elevenlabs=args.elevenlabs)
+    check_environment(use_elevenlabs=args.elevenlabs, use_sherpa=args.sherpa)
 
     # Determine TTS model
-    tts_model = "elevenlabs" if args.elevenlabs else "openai"
+    if args.sherpa:
+        tts_model = "sherpa"
+    elif args.elevenlabs:
+        tts_model = "elevenlabs"
+    else:
+        tts_model = "openai"
 
     # Handle legacy --voice (sets both, but new flags take precedence)
     host_voice = args.host_voice

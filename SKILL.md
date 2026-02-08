@@ -97,11 +97,19 @@ Optional: **ElevenLabs** for higher quality, more natural voices:
   --host-voice echo --cohost-voice shimmer
 ```
 
+```bash
+# Use local sherpa-onnx TTS (free, offline, unlimited)
+<skill>/scripts/generate.py --url "https://..." --sherpa
+```
+
 **OpenAI voices:** alloy, echo, fable, onyx, nova, shimmer
 
 **ElevenLabs voices (premade):** Roger, Sarah, Laura, Charlie, George, Callum, River, Liam, Alice, Matilda, Will, Jessica, Eric, Bella, Chris, Brian, Daniel, Lily, Adam, Bill
 
-Browse all: https://elevenlabs.io/voice-library
+**Sherpa-onnx (local):** Uses Piper VITS models. Voice paths configured in `config/conversation.yaml` under `text_to_speech.sherpa`. Requires `sherpa-onnx-offline-tts` binary (set `SHERPA_ONNX_TTS_BIN` or install to `~/.openclaw/tools/sherpa-onnx-tts/`).
+Performance note: CPU-based synthesis, typically ~2-10x realtime, requires ~2GB+ RAM, and quality is good but generally below ElevenLabs.
+
+Browse ElevenLabs voices: https://elevenlabs.io/voice-library
 
 ### All CLI Options
 
@@ -116,6 +124,7 @@ Browse all: https://elevenlabs.io/voice-library
 | `--host-name` | Host name (Person1) | `--host-name Alex` |
 | `--cohost-name` | Co-host name (Person2) | `--cohost-name Kiki` |
 | `--elevenlabs` | Use ElevenLabs TTS | `--elevenlabs` |
+| `--sherpa` | Use local sherpa-onnx TTS (free) | `--sherpa` |
 | `--host-voice` | Voice for host | `--host-voice Daniel` |
 | `--cohost-voice` | Voice for co-host | `--cohost-voice Alice` |
 | `--output`, `-o` | Output file path | `-o podcast.ogg` |
@@ -149,6 +158,7 @@ Key config options:
 | `OPENAI_API_KEY` | Yes | TTS audio generation (default) |
 | `GEMINI_API_KEY` | Yes | Transcript/dialogue generation |
 | `ELEVENLABS_API_KEY` | No | ElevenLabs TTS (required for `--elevenlabs`) |
+| `SHERPA_ONNX_TTS_BIN` | No | Path to sherpa-onnx-offline-tts binary (for `--sherpa`) |
 
 Get your ElevenLabs API key at: https://elevenlabs.io/app/settings/api-keys
 
