@@ -58,8 +58,8 @@ def check_environment(use_elevenlabs: bool = False, use_sherpa: bool = False):
         print("❌ --elevenlabs and --sherpa are mutually exclusive", file=sys.stderr)
         sys.exit(1)
 
-    # Sherpa is fully local — only needs GEMINI_API_KEY for transcript generation
-    if not use_sherpa and not os.environ.get("OPENAI_API_KEY"):
+    # Sherpa is fully local, and ElevenLabs does not need OpenAI.
+    if not use_sherpa and not use_elevenlabs and not os.environ.get("OPENAI_API_KEY"):
         print("❌ OPENAI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
@@ -131,8 +131,27 @@ import json
 import os
 import sys
 import yaml
+from langchain import hub
+from langsmith import Client as LangSmithClient
 from pathlib import Path
 from podcastfy.client import generate_podcast
+
+
+def trusted_hub_pull(owner_repo_commit, *, include_model=None, api_url=None, api_key=None):
+    """Allow podcastfy's pinned public LangChain prompts.
+
+    Recent LangChain versions require this explicit flag for public prompt pulls.
+    The prompt names and commits still come from this skill's checked-in config.
+    """
+    client = LangSmithClient(api_url=api_url, api_key=api_key)
+    return client.pull_prompt(
+        owner_repo_commit,
+        include_model=include_model,
+        dangerously_pull_public_prompt=True,
+    )
+
+
+hub.pull = trusted_hub_pull
 
 
 def deep_merge(base, override):
@@ -179,6 +198,8 @@ while i < len(sys.argv):
 # Apply overrides via recursive deep merge
 deep_merge(config, overrides)
 
+llm_model_name = os.environ.get("PODCASTFY_LLM_MODEL", "gemini-2.5-flash")
+
 # Handle empty podcast_name: podcastfy hardcodes "Welcome to {name} - {tagline}"
 # in its prompt, so empty string produces "Welcome to  - ...". Replace with a
 # generic name that reads naturally if the user explicitly cleared it.
@@ -207,11 +228,11 @@ if tts_model == "sherpa":
 # Generate podcast
 try:
     if urls:
-        audio_file = generate_podcast(urls=urls, conversation_config=config, tts_model=tts_model)
+        audio_file = generate_podcast(urls=urls, conversation_config=config, tts_model=tts_model, llm_model_name=llm_model_name)
     elif text:
-        audio_file = generate_podcast(text=text, conversation_config=config, tts_model=tts_model)
+        audio_file = generate_podcast(text=text, conversation_config=config, tts_model=tts_model, llm_model_name=llm_model_name)
     elif pdf_path:
-        audio_file = generate_podcast(urls=[pdf_path], conversation_config=config, tts_model=tts_model)
+        audio_file = generate_podcast(urls=[pdf_path], conversation_config=config, tts_model=tts_model, llm_model_name=llm_model_name)
     else:
         print("No input provided", file=sys.stderr)
         sys.exit(1)
@@ -417,15 +438,17 @@ def main():
     if not any([args.urls, args.text, args.pdf]):
         parser.error("At least one of --url, --text, or --pdf is required")
 
-    check_environment(use_elevenlabs=args.elevenlabs, use_sherpa=args.sherpa)
-
     # Determine TTS model
     if args.sherpa:
         tts_model = "sherpa"
     elif args.elevenlabs:
         tts_model = "elevenlabs"
+    elif not os.environ.get("OPENAI_API_KEY") and os.environ.get("ELEVENLABS_API_KEY"):
+        tts_model = "elevenlabs"
     else:
         tts_model = "openai"
+
+    check_environment(use_elevenlabs=(tts_model == "elevenlabs"), use_sherpa=args.sherpa)
 
     # Handle legacy --voice (sets both, but new flags take precedence)
     host_voice = args.host_voice

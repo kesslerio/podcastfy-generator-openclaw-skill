@@ -54,8 +54,8 @@ text_to_speech:
   elevenlabs:
     model: "eleven_multilingual_v2"
     default_voices:
-      question: "Daniel"    # Host: steady broadcaster (British)
-      answer: "Alice"       # Co-host: clear educator (British)
+      question: "Daniel - Steady Broadcaster"    # Host: steady broadcaster
+      answer: "Alice - Clear, Engaging Educator" # Co-host: clear educator
 
   # Local TTS via sherpa-onnx (free, offline, unlimited)
   # Voice format: "/path/to/model_dir" or "/path/to/model_dir:sid=N"

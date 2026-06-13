@@ -2,7 +2,7 @@
 name: podcastfy-generator
 description: Generate AI podcast-style audio conversations from URLs, YouTube videos, PDFs, or text topics. Creates NotebookLM-style two-host dialogues. Use when user asks to "create a podcast", "make an audio summary", "turn this article into a podcast", or wants content converted to audio discussion format.
 homepage: https://github.com/kesslerio/podcastfy-generator-openclaw-skill
-metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["OPENAI_API_KEY", "GEMINI_API_KEY"]}, "primaryEnv": "OPENAI_API_KEY", "optionalEnv": ["ELEVENLABS_API_KEY"]}}
+metadata: {"openclaw": {"emoji": "🎙️", "requires": {"bins": ["ffmpeg", "uv"], "env": ["GEMINI_API_KEY", "ELEVENLABS_API_KEY"]}, "primaryEnv": "ELEVENLABS_API_KEY", "optionalEnv": ["OPENAI_API_KEY"]}}
 ---
 
 # Podcastfy Generator 🎙️
@@ -80,9 +80,9 @@ Supported: `en` (English), `de` (German), `fr` (French), `es` (Spanish)
 
 ### TTS Provider & Voice Options
 
-Default: **OpenAI TTS** (`tts-1-hd` with onyx + nova voices)
+Default: **OpenAI TTS** (`tts-1-hd` with onyx + nova voices) when `OPENAI_API_KEY` is set.
 
-Optional: **ElevenLabs** for higher quality, more natural voices:
+Optional/default fallback: **ElevenLabs** for higher quality, more natural voices:
 
 ```bash
 # Use ElevenLabs with defaults (Daniel + Alice)
@@ -155,9 +155,9 @@ Key config options:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `OPENAI_API_KEY` | Yes | TTS audio generation (default) |
+| `OPENAI_API_KEY` | No | OpenAI TTS audio generation |
 | `GEMINI_API_KEY` | Yes | Transcript/dialogue generation |
-| `ELEVENLABS_API_KEY` | No | ElevenLabs TTS (required for `--elevenlabs`) |
+| `ELEVENLABS_API_KEY` | Yes | ElevenLabs TTS (required for `--elevenlabs`; used automatically when OpenAI is unavailable) |
 | `SHERPA_ONNX_TTS_BIN` | No | Path to sherpa-onnx-offline-tts binary (for `--sherpa`) |
 
 Get your ElevenLabs API key at: https://elevenlabs.io/app/settings/api-keys
@@ -182,7 +182,7 @@ First-time setup (run once):
 Install ffmpeg: `brew install ffmpeg` (macOS) or `apt install ffmpeg` (Linux)
 
 ### "API key not set"
-Ensure `OPENAI_API_KEY` and `GEMINI_API_KEY` are in your environment or secrets.conf
+Ensure `GEMINI_API_KEY` plus either `ELEVENLABS_API_KEY` or `OPENAI_API_KEY` are in your environment or secrets.conf.
 
 ### Hosts say "Quick Brief" or reference a show name
 Set `podcast_name: ""` in config/conversation.yaml or use `--podcast-name ""`
